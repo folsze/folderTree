@@ -4,6 +4,16 @@ param(
   [switch]$foldersOnly = $false
 )
 
+# Check for unknown arguments
+$validArgs = 'root', 'exclusions', 'foldersOnly'
+$argsList = $PSBoundParameters.Keys
+foreach ($arg in $argsList) {
+  if ($arg -notin $validArgs) {
+    Write-Error "Unknown argument: -$arg"
+    exit 1
+  }
+}
+
 if (-not (Test-Path $root)) {
   Write-Error "The specified folder $root does not exist."
   exit 1
@@ -21,19 +31,12 @@ function Print-FolderStructure {
   $items = Get-ChildItem -Path $root
 
   foreach ($item in $items) {
-    $fullPath = (Resolve-Path $item.FullName).Path
-
     if ($item.PSIsContainer) {
-      if ($exclusions -contains $fullPath) {
+      if ($item.Name -in $exclusions) {
         continue
       }
 
       Write-Host ("{0}{1}/" -f $indent, $item.Name)
-
-      # COMMENT: this folder is for domain driven design. I have to implement domain driven design here.
-      if ($item.Name -eq "domain") {
-        Write-Host ("{0}    {1}" -f $indent, "-- COMMENT: this folder is for domain driven design. I have to implement domain driven design here.")
-      }
 
       Print-FolderStructure -root $item.FullName -level ($level + 1) -exclusions $exclusions -foldersOnly:$foldersOnly
     } elseif (-not $foldersOnly) {
@@ -41,8 +44,5 @@ function Print-FolderStructure {
     }
   }
 }
-
-# resolve all the exclusion paths to their absolute paths
-$exclusions = $exclusions | ForEach-Object { (Resolve-Path $_).Path }
 
 Print-FolderStructure -root $root -exclusions $exclusions -foldersOnly:$foldersOnly
